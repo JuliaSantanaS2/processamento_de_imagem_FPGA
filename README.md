@@ -142,7 +142,7 @@ Neste projeto, a memória foi projetada de forma enxuta, com o único objetivo d
 #### Diagrama da memória
 ---
 <p align="center">
-<img src="images/RamMem.png" width="350"/>
+<img src="/home/clara/Downloads/diagramaknn" width="350"/>
 </p>
 ---
 
