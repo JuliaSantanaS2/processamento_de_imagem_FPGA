@@ -134,14 +134,14 @@ O fluxo de pixels percorre desde a **ROM**, passa pelo **processamento**, é arm
 - **Saída**: pixel de 8 bits endereçado por `(x, y)` do VGA.
 
 ### 🎛️ 2. Unidade de Controle (`main.v`)
-- Divide o clock (`clk_50 → clk_25`).
+- Gera novos sinais (`clk_50 → clk_25 ; clk_100`).
 - Gera sinais de reset e controla estados de processamento.
 - Conta os pixels processados e impede reescrita contínua na RAM.
-- Encaminha ao coprocessador o **estado/algoritmo ativo**, definido pelas chaves `SW[3:0]`.
+- Encaminha ao coprocessador o **estado/algoritmo ativo**, definido pelas chaves `SW[5:2]`,bem como o fator de escala `SW[8:7]` no caso do algoritmo de replicação de pixel.
 
 ### ⚙️ 3. Coprocessador
 - **Função**: Redimensionar a imagem original 160×120.
-- **Algoritmos** (selecionados via `SW[3:0]`):
+- **Algoritmos** 
 - `0001` → Nearest Neighbor
 - `0010` → Replicação de Pixel
 - `0100` → Média de Blocos
@@ -162,25 +162,51 @@ O fluxo de pixels percorre desde a **ROM**, passa pelo **processamento**, é arm
 - **Saída**: sinais digitais **RGB (8 bits cada)**, **HSYNC**, **VSYNC**, **BLANK**, **SYNC**, **CLK**.
 - **Extra**: gera as coordenadas de varredura para endereçar ROM e RAM.
 
+### 〰️ 6.Phase-Locked Loop
+- **Função**: PLL,ou Malha de Captura de Fase é um circuito eletrônico nativo da fpga.
+- **Entradas**:  Sinal de clock de referência
+- **Saída**: Uum ou mais sinais de clock com frequências e fases controladas.
 
-###  6. Phase-Locked Loop, (`pll`)
-- **Função**: circuito eletrônico que multiplica e ajusta fase da frequncia
-- **Entradas**: Sinal de clock de referência
-- **Saída**:Sinais de clock de saída com frequências e fases controladas.
+
+### 📊 7. Display
+- **Função**: Decodificar chaves para segmentos do display
+- **Entradas**: Clock,reset,bits do número a ser exibido e texto do algoritmo em execução 
+- **Saída**: 6 saídas que controlam diretamente os seis displays de 7 segmentos.
 
 
 ---
 
-### 🔄 Sequência do Fluxo de Dados
-1. **ROM** fornece os pixels originais (160×120 ou 320×240).
-2. **Coprocessador** aplica o algoritmo selecionado via `SW[3:0]`.
-3. **RAM** armazena a imagem processada em 320×240.
-4. **Unidade de Controle** organiza o fluxo de escrita/leitura.
-5. **VGA** renderiza a imagem em 640×480.
+### 🔄 Sequência do Fluxo de Dados `Top/Down`.
+
+Este projeto implementa um pipeline de hardware para processamento de imagem em tempo real, renderizando o resultado em um monitor VGA com resolução de 640×480. O sistema é coordenado por uma Unidade de Controle central que gerencia o fluxo de dados entre os módulos de memória e processamento, garantindo a integridade da operação desde a entrada do usuário até a saída de vídeo.
+
+#### **Interface e Controle Principal**
+
+O ponto de partida da interação é o usuário, que define a operação desejada através de:
+* **Chaves (Switches):** Selecionam o algoritmo de redimensionamento a ser aplicado e o fator de escala.
+* **Botão:** Inicia o ciclo de processamento de imagem.
+
+A **Unidade de Controle** atua como o cérebro do sistema, orquestrando todo o fluxo de escrita e leitura. Ela interpreta a seleção do usuário e gerencia a transição de dados entre as memórias e o processador.
+
+#### **Fluxo de Processamento de Imagem**
+
+Uma vez iniciado pelo usuário, a Unidade de Controle ativa o pipeline de hardware:
+
+1.  O **Coprocessador** inicia sua tarefa, buscando os pixels da imagem original, que estão armazenados na memória **ROM**. Esta memória de entrada pode conter imagens com resoluções como 160×120 ou 320×240.
+2.  Para cada pixel recebido da ROM, o Coprocessador aplica o algoritmo de redimensionamento previamente selecionado pelas chaves.
+3.  O resultado do processamento é então enviado e armazenado na memória **RAM**, que funciona como um buffer de quadro (frame buffer), guardando a imagem processada no formato 320×240.
+4.  Finalmente, o controlador **VGA** lê continuamente os dados da RAM e os renderiza na tela, convertendo o buffer de 320×240 para o padrão de saída de 640×480.
+
+#### **Mecanismo de Reset Automático**
+
+Para garantir uma operação estável e previsível sempre que o usuário altera o algoritmo, o sistema emprega um mecanismo de reset automático. Este circuito funciona como uma máquina de estados simples:
+
+* **Estado 1: Ocioso (IDLE):** Neste estado (`reset_counter == 0`), o sistema opera normalmente enquanto monitora qualquer alteração nas chaves de seleção (`sw_changed`).
+* **Estado 2: Resetando (RESET_ACTIVE):** Ao detectar uma mudança nas chaves, o sistema transita para este estado (`reset_counter > 0`), ativando um sinal de reset (`auto_reset_flag`) por um período pré-determinado. Isso força todos os módulos a retornarem a um estado inicial conhecido, preparando o pipeline para o novo processamento de forma limpa.
 
 ![](https://github.com/JuliaSantanaS2/processamento_de_imagem_FPGA/blob/main/fluxodedados.png?raw=true)
 
-****
+
 
 
 ## 📦 Memória On-Chip e Integração com o Coprocessador
@@ -255,19 +281,18 @@ Diferente de arquiteturas que utilizam memória para instruções, aqui a memór
 📌 Em resumo:
 - A RAM funciona como **framebuffer da imagem processada**, não armazena instruções.
 - O coprocessador controla a escrita usando **pixel_out_valid**, **processing_done** e **pixel_in_ready**.
-- A seleção de algoritmo via `SW[5:2]` permite alternar dinamicamente entre diferentes métodos de redimensionamento.
+- A seleção de algoritmo via `SW[3:0]` permite alternar dinamicamente entre diferentes métodos de redimensionamento.
 
 
 ## 🏗️ Arquitetura Geral
 
 ### 🔧 Módulo Principal (`main.v`)
-- Instancia os módulos de leitura, processamento, memória e VGA,funcionando como uma unidade de controle.
-- Divide o clock (**50 MHz → 25 MHz**) e gera sinais de reset.
-- Multiplica o clock para **100MHz**
-- Registra estado do processo através do reset automático e manual (SW[9])
-    + Zera contadores
-    + Máquinas de estado voltam para o estado IDLE (ocioso).
-    + Limpa flags
+- Instancia os módulos de leitura (ROM), processamento ("ULA"), memória (RAM)e VGA. Correspondente a uma UC na arquitetura de um processador
+- Divide o clock (**50 MHz → 25 MHz**) e gera um sinal de **100MHz** do através do pll .
+- Gera reset manual na chave 9 e automático 
+  - Contadores são zerados (rom_addr_counter <= 0;)
+  - Máquinas de estado voltam para o estado IDLE (ocioso)
+  - Flags e "travas" (process_done_latch <= 0;) são limpos.
 - Controla endereços de leitura e escrita da RAM.
 - Encaminha para o coprocessador o **estado/algoritmo ativo** de acordo com as chaves (`SW[5:2]`).
 - Permite selecionar dinamicamente entre imagem original, imagem processada ou alternativa.
@@ -301,7 +326,7 @@ O problema de **overflow** ocorre quando a taxa de produção de pixels é maior
 ## 🎛️ Seleção de Algoritmos
 As chaves da placa determinam qual **algoritmo/estado** o coprocessador executa:
 
-| SW[5:2] | Algoritmo / Estado |
+| SW[3:0] | Algoritmo / Estado |
 |---------|-----------------------------|
 | `0001` | Nearest Neighbor (Zoom In) |
 | `0010` | Replicação de Pixel |
