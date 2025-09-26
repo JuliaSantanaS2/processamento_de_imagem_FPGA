@@ -162,6 +162,13 @@ O fluxo de pixels percorre desde a **ROM**, passa pelo **processamento**, é arm
 - **Saída**: sinais digitais **RGB (8 bits cada)**, **HSYNC**, **VSYNC**, **BLANK**, **SYNC**, **CLK**.
 - **Extra**: gera as coordenadas de varredura para endereçar ROM e RAM.
 
+
+###  6. Phase-Locked Loop, (`pll`)
+- **Função**: circuito eletrônico que multiplica e ajusta fase da frequncia
+- **Entradas**: Sinal de clock de referência
+- **Saída**:Sinais de clock de saída com frequências e fases controladas.
+
+
 ---
 
 ### 🔄 Sequência do Fluxo de Dados
@@ -248,16 +255,21 @@ Diferente de arquiteturas que utilizam memória para instruções, aqui a memór
 📌 Em resumo:
 - A RAM funciona como **framebuffer da imagem processada**, não armazena instruções.
 - O coprocessador controla a escrita usando **pixel_out_valid**, **processing_done** e **pixel_in_ready**.
-- A seleção de algoritmo via `SW[3:0]` permite alternar dinamicamente entre diferentes métodos de redimensionamento.
+- A seleção de algoritmo via `SW[5:2]` permite alternar dinamicamente entre diferentes métodos de redimensionamento.
 
 
 ## 🏗️ Arquitetura Geral
 
 ### 🔧 Módulo Principal (`main.v`)
-- Coordena os módulos de leitura, processamento, memória e VGA.
+- Instancia os módulos de leitura, processamento, memória e VGA,funcionando como uma unidade de controle.
 - Divide o clock (**50 MHz → 25 MHz**) e gera sinais de reset.
+- Multiplica o clock para **100MHz**
+- Registra estado do processo através do reset automático e manual (SW[9])
+    + Zera contadores
+    + Máquinas de estado voltam para o estado IDLE (ocioso).
+    + Limpa flags
 - Controla endereços de leitura e escrita da RAM.
-- Encaminha para o coprocessador o **estado/algoritmo ativo** de acordo com as chaves (`SW[3:0]`).
+- Encaminha para o coprocessador o **estado/algoritmo ativo** de acordo com as chaves (`SW[5:2]`).
 - Permite selecionar dinamicamente entre imagem original, imagem processada ou alternativa.
 
 ---
@@ -289,7 +301,7 @@ O problema de **overflow** ocorre quando a taxa de produção de pixels é maior
 ## 🎛️ Seleção de Algoritmos
 As chaves da placa determinam qual **algoritmo/estado** o coprocessador executa:
 
-| SW[3:0] | Algoritmo / Estado |
+| SW[5:2] | Algoritmo / Estado |
 |---------|-----------------------------|
 | `0001` | Nearest Neighbor (Zoom In) |
 | `0010` | Replicação de Pixel |
