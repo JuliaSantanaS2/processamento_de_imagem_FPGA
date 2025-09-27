@@ -1,0 +1,125 @@
+module display (
+    input               clk,
+    input               reset,
+
+    // --- NOVAS ENTRADAS PARA SELEÇÃO ESTÁTICA ---
+    input       [1:0]   zoom_level_select,      // Mapeado para SW[8:7]
+    input       [3:0]   zoom_type_select,       // Mapeado para SW[5:2]
+
+    // --- ENTRADAS DE ERRO (mantidas) ---
+    //input               invalid_zoom_error,
+    //input               multiple_switches_error,
+    //input               no_switch_selected_error,
+
+    // --- SAÍDAS PARA OS DISPLAYS DE 7 SEGMENTOS ---
+    output      [6:0]   HEX0,
+    output      [6:0]   HEX1,
+    output      [6:0]   HEX2,
+    output      [6:0]   HEX3,
+    output      [6:0]   HEX4,
+    output      [6:0]   HEX5
+);
+
+    // Registrador para armazenar os 6 caracteres a serem exibidos.
+    reg [7:0] text_data [0:5];
+    integer i;
+
+    // Lógica combinacional para definir o texto a ser exibido.
+    always @(*) begin
+        // 1. Inicializa todos os displays com espaço em branco.
+        for (i = 0; i < 6; i = i + 1) begin
+            text_data[i] = " ";
+        end
+
+        // 2. Verifica as condições de erro (têm prioridade máxima).
+        if (no_switch_selected_error) begin
+            // Exibe "SELECT"
+            text_data[0] = "S"; text_data[1] = "E"; text_data[2] = "L"; 
+            text_data[3] = "E"; text_data[4] = "C"; text_data[5] = "T";
+        end 
+        else if (multiple_switches_error) begin
+            // Exibe "ERROR"
+            text_data[0] = "E"; text_data[1] = "R"; text_data[2] = "R"; 
+            text_data[3] = "O"; text_data[4] = "R";
+        end 
+        else if (invalid_zoom_error) begin
+            // Exibe "INV ZM" (Invalid Zoom)
+            text_data[0] = "I"; text_data[1] = "N"; text_data[2] = "V"; 
+            text_data[3] = " "; text_data[4] = "Z"; text_data[5] = "M";
+        end 
+        // 3. Se não houver erros, exibe a informação selecionada.
+        else begin
+            // Define o primeiro caractere (o número) com base em SW[8:7].
+            case(zoom_level_select)
+                2'b01:   text_data[0] = "4";
+                2'b10:   text_data[0] = "8";
+                default: text_data[0] = "2"; // 2'b00 ou 2'b11
+            endcase
+            
+            text_data[1] = " "; // Adiciona um espaço após o número.
+
+            // Define o restante do texto com base em SW[5:2].
+            case(zoom_type_select)
+                4'b0001: begin // Exibe " REPX"
+                    text_data[2] = "R"; text_data[3] = "E"; text_data[4] = "P"; text_data[5] = "X";
+                end
+                4'b0010: begin // Exibe " VIN"
+                    text_data[2] = "V"; text_data[3] = "I"; text_data[4] = "N";
+                end
+                4'b0100: begin // Exibe " VOUT"
+                    text_data[2] = "V"; text_data[3] = "O"; text_data[4] = "U"; text_data[5] = "T";
+                end
+                4'b1000: begin // Exibe " MBCS"
+                    text_data[2] = "M"; text_data[3] = "B"; text_data[4] = "C"; text_data[5] = "S";
+                end
+                default: begin
+                    // Se nenhuma chave válida for selecionada, não mostra nada além do número.
+                end
+            endcase
+        end
+    end
+
+    // =============================================================================
+    // FUNÇÃO DE DESCODIFICAÇÃO (sem alterações)
+    // Converte um caracter ASCII para um padrão de 7 segmentos.
+    // =============================================================================
+    function [6:0] char_to_segments;
+        input [7:0] char;
+        begin
+            case(char)
+                // Letras Maiúsculas
+                "A": char_to_segments = 7'b0001000; "B": char_to_segments = 7'b0000011;
+                "C": char_to_segments = 7'b1000110; "D": char_to_segments = 7'b0100001; // Corrigido para D minúsculo
+                "E": char_to_segments = 7'b0000110; "F": char_to_segments = 7'b0001110;
+                "G": char_to_segments = 7'b1000010; "H": char_to_segments = 7'b0001011;
+                "I": char_to_segments = 7'b1001111; "J": char_to_segments = 7'b1100001;
+                "L": char_to_segments = 7'b1000111; "M": char_to_segments = 7'b1101010;
+                "N": char_to_segments = 7'b1010100; // Corrigido para N minúsculo
+                "O": char_to_segments = 7'b1000000; "P": char_to_segments = 7'b0001100;
+                "R": char_to_segments = 7'b1011111; // Corrigido para R minúsculo
+                "S": char_to_segments = 7'b0010010; "T": char_to_segments = 7'b0000111;
+                "U": char_to_segments = 7'b1000001; "V": char_to_segments = 7'b1100011;
+                "X": char_to_segments = 7'b0001001; "Z": char_to_segments = 7'b0100100;
+                
+                // Números
+                "2": char_to_segments = 7'b0100100;
+                "4": char_to_segments = 7'b0011001;
+                "8": char_to_segments = 7'b0000000;
+
+                // Caracteres especiais
+                " ": char_to_segments = 7'b1111111; // Apagado
+                default: char_to_segments = 7'b1111111; // Caracter desconhecido = Apagado
+            endcase
+        end
+    endfunction
+
+    // Mapeamento estático do buffer de texto para os displays HEX.
+    // HEX5 é o display mais à esquerda, HEX0 é o mais à direita.
+    assign HEX5 = char_to_segments(text_data[0]);
+    assign HEX4 = char_to_segments(text_data[1]);
+    assign HEX3 = char_to_segments(text_data[2]);
+    assign HEX2 = char_to_segments(text_data[3]);
+    assign HEX1 = char_to_segments(text_data[4]);
+    assign HEX0 = char_to_segments(text_data[5]);
+
+endmodule

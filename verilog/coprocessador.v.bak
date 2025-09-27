@@ -1,0 +1,59 @@
+module coprocessador (
+    input  wire clk,
+    input  wire resetn,
+
+    // Sinais de controle
+    input  wire start,              // Pulso para iniciar o processamento de uma nova imagem
+    input  wire [9:0] largura_in,   // Largura da imagem atual (suporta ate 1024)
+    input  wire [9:0] altura_in,    // Altura da imagem atual (suporta ate 1024)
+    input  wire [3:0] SW,           // Chaves para seleção de saída
+
+    // Entrada de dados
+    input  wire [7:0] pixel_in,     // Pixel de entrada (pode vir da ROM ou câmera)
+
+    // Saída de dados
+    output reg  [7:0] pixel_out,
+    output reg  pixel_out_valid,
+    output reg  processing_done
+);
+
+    // Saídas intermediárias do algoritmo
+    wire [7:0] out_algoritmo;
+    wire       out_algoritmo_valid;
+    wire       done_algoritmo;
+
+    // Exemplo de instância do módulo de replicação de pixel
+    replicacao_pixel replicacao_pixel_inst (
+        .clk             (clk),
+        .resetn          (resetn),
+        .start           (start),
+        .largura_in      (largura_in),
+        .altura_in       (altura_in),
+        .pixel_in        (pixel_in),
+        .pixel_out       (out_algoritmo), 
+        .pixel_out_valid (out_algoritmo_valid), 
+        .processing_done (done_algoritmo) 
+    );
+
+    // Multiplexador de seleção de saída
+    always @(*) begin
+        case (SW)
+            4'b0001: begin
+                pixel_out       = pixel_in;        // Mostra imagem original
+                pixel_out_valid = 1'b1;
+                processing_done = 1'b0;
+            end
+            4'b0010: begin
+                pixel_out       = out_algoritmo;   // Mostra saída do algoritmo
+                pixel_out_valid = out_algoritmo_valid;
+                processing_done = done_algoritmo;
+            end
+            default: begin
+                pixel_out       = 8'd0;            // Saída zerada
+                pixel_out_valid = 1'b0;
+                processing_done = 1'b0;
+            end
+        endcase
+    end
+
+endmodule

@@ -1,0 +1,101 @@
+// Modulo para reducao (Zoom Out 2x) por Vizinho Mais Proximo
+// com dimensoes de entrada dinamicas.
+module vizinho_proximo_out (
+    input  wire clk,
+    input  wire resetn,
+
+    // Sinais de controle
+    input  wire start,             // Pulso para iniciar o processamento de uma nova imagem
+    input  wire [9:0] largura_in,   // Largura da imagem de entrada
+    input  wire [9:0] altura_in,    // Altura da imagem de entrada
+
+    // Entrada de dados
+    input  wire [7:0] pixel_in,
+
+    // Saida de dados
+    output reg  [7:0] pixel_out,
+    output reg  pixel_out_valid,
+    output reg  processing_done   // Pulso que indica o fim do processamento
+);
+
+    // Dimensoes maximas que o hardware suporta
+    localparam LARGURA_MAXIMA = 640;
+
+    // Estados da maquina de estados
+    localparam [1:0] S_IDLE        = 2'b00, // Aguardando o sinal de start
+                      S_PROCESSANDO = 2'b01; // Lendo e decidindo se envia o pixel
+
+    reg [1:0] estado;
+
+    // Registradores para armazenar as dimensoes da imagem atual
+    reg [9:0] largura_reg;
+    reg [9:0] altura_reg;
+
+    // Contadores para saber a posicao (x,y) do pixel de entrada
+    reg [9:0] x_in_count;
+    reg [9:0] y_in_count;
+
+    always @(posedge clk or negedge resetn) begin
+        if (!resetn) begin
+            // Reset de todos os registradores
+            estado          <= S_IDLE;
+            largura_reg     <= 0;
+            altura_reg      <= 0;
+            x_in_count      <= 0;
+            y_in_count      <= 0;
+            pixel_out       <= 8'd0;
+            pixel_out_valid <= 1'b0;
+            processing_done <= 1'b0;
+        end else begin
+            // Por padrao, os sinais de saida ficam em baixo
+            pixel_out_valid <= 1'b0;
+            processing_done <= 1'b0;
+
+            case (estado)
+                S_IDLE: begin
+                    if (start) begin
+                        // Captura as dimensoes da imagem
+                        largura_reg <= (largura_in > LARGURA_MAXIMA) ? LARGURA_MAXIMA : largura_in;
+                        altura_reg  <= altura_in;
+                        
+                        // Reseta os contadores para o inicio da nova imagem
+                        y_in_count  <= 0;
+                        x_in_count  <= 0;
+                        estado      <= S_PROCESSANDO;
+                    end
+                end
+
+                S_PROCESSANDO: begin
+                    // A magica acontece aqui: a saida so e valida se a
+                    // coordenada Y (linha) E a coordenada X (coluna) forem pares.
+                    // A forma mais eficiente de checar se um numero e par e olhando seu bit menos significativo (LSB).
+                    // Se o bit[0] for 0, o numero e par.
+                    if (y_in_count[0] == 1'b0 && x_in_count[0] == 1'b0) begin
+                        pixel_out_valid <= 1'b1;
+                        pixel_out       <= pixel_in;
+                    end
+
+                    // Logica para avancar os contadores a cada pixel de entrada
+                    if (x_in_count == largura_reg - 1) begin // Chegou ao fim de uma linha
+                        x_in_count <= 0;
+                        if (y_in_count == altura_reg - 1) begin // Chegou ao fim da ultima linha
+                            // Fim do processamento da imagem
+                            y_in_count      <= 0;
+                            estado          <= S_IDLE;
+                            processing_done <= 1'b1;
+                        end else begin // Fim de uma linha normal
+                            y_in_count <= y_in_count + 1;
+                        end
+                    end else begin // Avanca para o proximo pixel da linha
+                        x_in_count <= x_in_count + 1;
+                    end
+                end
+
+                default: begin
+                    estado <= S_IDLE;
+                end
+            endcase
+        end
+    end
+
+endmodule

@@ -1,0 +1,67 @@
+module media_de_blocos #(
+    parameter LARGURA_IMAGEM = 4,
+    parameter LARGURA_PIXEL = 8
+)(
+    input wire clk,
+    input wire resetn,
+
+    input wire pixel_in_valid,
+    input wire [LARGURA_PIXEL-1:0] pixel_in,
+
+    output wire pixel_out_valid,
+    output wire [LARGURA_PIXEL-1:0] pixel_out
+);
+
+    localparam SOMA_MAXIMA = LARGURA_PIXEL + 2;
+
+    reg [$clog2(LARGURA_IMAGEM)-1:0] x_posicao = 0;
+    reg [15:0] y_posicao = 0;
+
+    reg [LARGURA_PIXEL-1:0] registrador_linha [0:LARGURA_IMAGEM-1];
+
+    reg [LARGURA_PIXEL-1:0] canto_inferior_direito;
+    reg [LARGURA_PIXEL-1:0] canto_inferior_esquerdo;
+    reg [LARGURA_PIXEL-1:0] canto_superior_direito;
+    reg [LARGURA_PIXEL-1:0] superior_esquerdo;
+
+    wire [SOMA_MAXIMA-1:0] soma_pixels;
+
+    always @(posedge clk or negedge resetn) begin
+        if (!resetn) begin
+            
+            x_posicao <= 0;
+            y_posicao <= 0;
+
+            canto_inferior_direito <= 0;
+            canto_inferior_esquerdo <= 0;
+            canto_superior_direito <= 0;
+            superior_esquerdo <= 0;
+
+        end else begin
+            if (pixel_in_valid) begin
+                if (x_posicao == LARGURA_IMAGEM - 1) begin
+                    x_posicao <= 0;
+                    y_posicao <= y_posicao + 1;
+                    
+                end else begin
+                    x_posicao <= x_posicao + 1;
+                end
+
+                canto_inferior_esquerdo <= canto_inferior_direito;
+                superior_esquerdo <= canto_superior_direito;
+                
+                canto_inferior_direito <= pixel_in;
+                canto_superior_direito <= registrador_linha[x_posicao];
+
+                registrador_linha[x_posicao] <= pixel_in;
+            end
+        end
+    end
+
+    assign soma_pixels = canto_inferior_direito + canto_inferior_esquerdo + canto_superior_direito + superior_esquerdo;
+
+    assign pixel_out = soma_pixels >> 2;
+
+    assign pixel_out_valid = pixel_in_valid && (x_posicao[0] == 1'b1) && (y_posicao[0] == 1'b1) && (y_posicao > 0);
+
+endmodule

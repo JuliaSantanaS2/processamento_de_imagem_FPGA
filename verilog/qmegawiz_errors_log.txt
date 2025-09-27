@@ -1,0 +1,37 @@
+
+
+C:/Users/julia/Desktop/SD/lab2_ju/imagem_original.v
+
+Sep 05 01PM:42:34>: The following design file, which has identical name but a different extension 
+from the specified variation file, already exists in the working directory:
+
+imagem_original.vhd
+
+This may create a conflict of design files and/or lead to undesirable side
+effects.
+
+Is it OK to continue file generation?
+
+C:/Users/julia/Desktop/SD/lab2_ju/imagem_original.v
+
+Sep 05 01PM:43:37>: The following design file, which has identical name but a different extension 
+from the specified variation file, already exists in the working directory:
+
+imagem_original.vhd
+
+This may create a conflict of design files and/or lead to undesirable side
+effects.
+
+Is it OK to continue file generation?
+
+C:/Users/julia/Desktop/SD/lab2_ju/imagem_original.v
+
+Sep 05 01PM:45:36>: The following design file, which has identical name but a different extension 
+from the specified variation file, already exists in the working directory:
+
+imagem_original.vhd
+
+This may create a conflict of design files and/or lead to undesirable side
+effects.
+
+Is it OK to continue file generation?

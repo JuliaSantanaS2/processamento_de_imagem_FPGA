@@ -1,0 +1,37 @@
+
+State Machine - |main|coprocessador:coprocessador_inst|replicacao_pixel:replicacao_pixel_inst|estado
+Name estado.S_IDLE estado.S_ENVIANDO estado.S_RECEBENDO 
+estado.S_IDLE 0 0 0 
+estado.S_RECEBENDO 1 0 1 
+estado.S_ENVIANDO 1 1 0 
+
+State Machine - |main|vga_module:vga_inst|v_state
+Name v_state.V_BACK_STATE v_state.V_PULSE_STATE v_state.V_FRONT_STATE v_state.V_ACTIVE_STATE 
+v_state.V_ACTIVE_STATE 0 0 0 0 
+v_state.V_FRONT_STATE 0 0 1 1 
+v_state.V_PULSE_STATE 0 1 0 1 
+v_state.V_BACK_STATE 1 0 0 1 
+
+State Machine - |main|vga_module:vga_inst|h_state
+Name h_state.H_BACK_STATE h_state.H_PULSE_STATE h_state.H_FRONT_STATE h_state.H_ACTIVE_STATE 
+h_state.H_ACTIVE_STATE 0 0 0 0 
+h_state.H_FRONT_STATE 0 0 1 1 
+h_state.H_PULSE_STATE 0 1 0 1 
+h_state.H_BACK_STATE 1 0 0 1 
+
+State Machine - |main|coprocessador:coprocessador_inst|vizinho_proximo_out:vizinho_proximo_out_inst|estado
+Name estado.S_PROCESSANDO 
+estado.S_IDLE 0 
+estado.S_PROCESSANDO 1 
+
+State Machine - |main|coprocessador:coprocessador_inst|vizinho_proximo_in:vizinho_proximo_in_inst|estado
+Name estado.S_IDLE estado.S_ENVIANDO estado.S_RECEBENDO 
+estado.S_IDLE 0 0 0 
+estado.S_RECEBENDO 1 0 1 
+estado.S_ENVIANDO 1 1 0 
+
+State Machine - |main|coprocessador:coprocessador_inst|media_de_blocos:media_de_blocos_inst|estado
+Name estado.S_IDLE estado.S_PROCESSA estado.S_PREENCHE_BUFFER 
+estado.S_IDLE 0 0 0 
+estado.S_PREENCHE_BUFFER 1 0 1 
+estado.S_PROCESSA 1 1 0 

@@ -1,0 +1,71 @@
+module main (
+    input  wire [9:0] SW,
+    input  wire CLK_50,
+    output wire [9:0] LEDR,
+    output wire hsync,
+    output wire vsync,
+    output wire [7:0] red,
+    output wire [7:0] green,
+    output wire [7:0] blue,
+    output wire sync,
+    output wire clk,
+    output wire blank
+);
+
+    parameter [7:0] COLOR_RED   = 8'hE0;
+    parameter [7:0] COLOR_GREEN = 8'h1C;
+    parameter [24:0] SLOW_TICK_PERIOD = 25'd24_999_999;
+
+    reg clk_25 = 0;
+    wire reset = SW[9];
+
+    wire [9:0] next_x;
+    wire [9:0] next_y;
+    wire [7:0] pixel_color;
+
+    reg [24:0] slow_clk_divider = 0;
+    reg [2:0] internal_counter = 0;
+    reg color_state = 0;
+
+    assign LEDR = SW;
+    assign pixel_color = (color_state == 0) ? COLOR_RED : COLOR_GREEN;
+
+    always @(posedge CLK_50) begin
+        clk_25 <= ~clk_25;
+    end
+
+    always @(posedge CLK_50) begin
+        if (reset) begin
+            slow_clk_divider <= 0;
+            internal_counter <= 0;
+            color_state      <= 0;
+        end else begin
+            if (slow_clk_divider == SLOW_TICK_PERIOD) begin
+                slow_clk_divider <= 0;
+                internal_counter <= internal_counter + 1;
+                if (internal_counter == 3'b111) begin
+                    color_state <= ~color_state;
+                end
+            end else begin
+                slow_clk_divider <= slow_clk_divider + 1;
+            end
+        end
+    end
+
+    vga_module vga_inst (
+        .clock(clk_25),
+        .reset(reset),
+        .color_in(pixel_color),
+        .next_x(next_x),
+        .next_y(next_y),
+        .hsync(hsync),
+        .vsync(vsync),
+        .red(red),
+        .green(green),
+        .blue(blue),
+        .sync(sync),
+        .clk(clk),
+        .blank(blank)
+    );
+
+endmodule
