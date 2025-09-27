@@ -337,10 +337,48 @@ As chaves da placa determinam qual **algoritmo/estado** o coprocessador executa:
 ---
 
 ## 🧪 Testes e Simulações
+Testes de Endereçamento e Integridade de Dados
 
-- **Simulação (Icarus Verilog/ModelSim)**: validação isolada de cada módulo utilizando amostras reduzidas de pixels em escala de cinza (ex.: 8×8 ou 16×16) para observar o comportamento interno dos algoritmos.
-- **Integração (Quartus Prime II)**: verificação do fluxo completo, da ROM até a VGA, com monitoramento dos sinais de handshake e endereços de RAM.
-- **Implementação (DE1-SoC)**: execução prática com imagens em `.mif` de 160×120 redimensionadas para 640×480, permitindo validar visualmente o resultado.
+ - Teste 1.1: Validação da Escrita na RAM
+    + Metodologia: Foi criado um teste em simulação (utilizando o ModelSim/QuestaSim do Quartus) onde o coprocessador foi configurado para gerar um padrão de dados previsível. Em vez de calcular um pixel, ele escrevia o próprio endereço de memória como dado (ex: no endereço 100, o dado escrito era 100).
+
+    + Verificação: Na janela de simulação (waveform), monitoramos os sinais ram_address_write, pixel_coproc_out e escrita (write enable da RAM). Foi verificado se, a cada pulso do sinal escrita, o valor em pixel_coproc_out correspondia exatamente ao valor em ram_address_write, confirmando que o dado correto estava sendo enviado para o endereço correto.
+
+- Teste 1.2: Validação de Limites de Memória (Boundary Check)
+
+  - Metodologia: Durante a simulação do processamento de uma imagem completa, o contador pixel_write_count (que gera o endereço de escrita) foi observado.
+
+  - Verificação: Foi confirmado que o contador nunca ultrapassou o limite máximo de pixels para a imagem de saída (ex: 320 * 240 = 76800). Isso preveniu erros de buffer overflow, onde o sistema tentaria escrever em áreas da RAM fora do espaço alocado para a imagem.
+
+- Teste 1.3: Validação da Leitura da RAM pelo VGA
+
+  - Metodologia: Após a conclusão da escrita (process_done_latch = 1), a lógica de leitura do controlador VGA foi ativada.
+
+  - Verificação: Em simulação, o sinal ram_address_read (gerado pelo main para o VGA) foi comparado com a saída de dados da RAM (ram_q). Foi validado que para cada endereço solicitado por ram_address_read, o dado em ram_q era o mesmo que havia sido escrito no Teste 1.1, garantindo a integridade do dado no ciclo completo de escrita-leitura.
+
+2. Testes de Sincronização e Temporização
+
+
+    Teste 2.1: Validação dos Domínios de Clock
+
+      + Metodologia: O projeto utiliza múltiplos clocks derivados do oscilador de 50 MHz da placa: um clock de 25 MHz (clk_25_reg) para a lógica de controle e VGA, e um clock de 100 MHz (clock_100) gerado pelo PLL para acesso rápido às memórias.
+
+      + Verificação: Em simulação, foi verificado se os processos sensíveis a clock eram disparados pelas bordas corretas. Confirmou-se que a lógica de reset e os contadores do main usavam o clock de 25 MHz, enquanto as operações de escrita e leitura na ram_inst eram sincronizadas com o clock de 100 MHz, conforme o planejado.
+
+    Teste 2.2: Validação do Handshake (Coprocessador ↔ RAM)
+
+      + Metodologia: A transferência de dados entre o coprocessador e a RAM é controlada pelos sinais pixel_coproc_valid (do coprocessador) e coproc_pixel_in_ready (para o coprocessador).
+
+      + Verificação: Na simulação, foi observado que o sinal de escrita na RAM (escrita) e o incremento do contador de endereço (pixel_write_count) só ocorriam quando pixel_coproc_valid estava em nível alto. Isso garante que a RAM só armazene dados válidos. Adicionalmente, foi verificado que o coprocessador só processava um novo pixel de entrada quando coproc_pixel_in_ready estava ativo, prevenindo a perda de pixels da ROM.
+
+3. Teste de Integração e Validação Visual
+
+     + Metodologia: Em vez de uma imagem fotográfica, a ROM foi carregada com um padrão de teste simples (barras de cor ou um padrão xadrez). O sistema foi então programado na placa DE1-SoC e conectado a um monitor VGA. Todos os algoritmos foram selecionados sequencialmente através das chaves SW.
+
+     + Verificação:Erros de Endereçamento: A exibição de blocos de imagem trocados, repetidos ou ausentes no monitor indicaria um erro na lógica de cálculo de ram_address_read. Pixels individuais corrompidos apontariam para um erro no coprocessador ou no contador pixel_write_count.
+
+    + Erros de Sincronização: Uma imagem com "fantasmas" (ghosting), piscando ou com cortes (tearing) indicaria um problema de temporização entre o controlador VGA e a RAM. Isso significaria que a RAM não estaria entregando os dados na velocidade que o VGA precisa, um problema clássico de sincronização.
+
 
 
 ### 🔎 Observação de Waveforms
@@ -409,4 +447,4 @@ Este projeto foi desenvolvido por:
 - [**Maria Clara**](https://github.com/)
 - [**Vitor Dórea**](https://github.com/)
 
-Agradecimentos ao(a) professor(a) [**Angelo Duarte**] pela orientação.
+Agradecimentos ao(a) professor(a) **Angelo Duarte** pela orientação.
