@@ -245,7 +245,8 @@ Diferente de arquiteturas que utilizam memória para instruções, aqui a memór
 
 1. **Escrita**
 - O pixel processado é armazenado em `ram_address_write`.
-- Cada módulo de processamento (`replicacao_pixel`, `media_de_blocos`, `vizinho_proximo_in`, `vizinho_proximo_out`) gera `pixel_out` e `pixel_out_valid`, selecionados pelo **mux do coprocessador** de acordo com `SW[3:0]`.
+- Cada módulo de processamento (`replicacao_pixel`, `media_de_blocos`, `vizinho_proximo_in`, `vizinho_proximo_out`) gera `pixel_out` e `pixel_out_valid`, selecionados pelo **mux do coprocessador** de acordo com `SW[5:2]`.
+- Para o algoritmo `replicacao_pixel`, há um fator de escala de 4 bits regulado pelas chaves `SW[8:7]`.
 - Processo continua até que todos os pixels da imagem (**320×240**) sejam gravados, acionando `processing_done`.
 
 2. **Leitura**
